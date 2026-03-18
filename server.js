@@ -62,31 +62,32 @@ const existingSettings = loadSettings();
 console.log(`  Loaded ${existingPieces.length} pieces from database.`);
 console.log(`  Splash video: ${existingSettings.splashVideo ? "YES" : "not set"}`);
 
-// ═══════════════════ STARTUP: Compress oversized images ═══════════════════
+// ═══════════════════ STARTUP: Compress oversized images (one at a time, low memory) ═══════════════════
 (async () => {
   try {
-    const files = fs.readdirSync(UPLOADS_DIR);
+    const files = fs.readdirSync(UPLOADS_DIR).filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f));
     let compressed = 0;
     for (const file of files) {
       const fp = path.join(UPLOADS_DIR, file);
       const stat = fs.statSync(fp);
       if (stat.size > 500 * 1024) { // Over 500KB — needs compression
         try {
-          const tmpPath = fp + ".tmp";
-          await sharp(fp)
-            .resize(1200, null, { withoutEnlargement: true })
-            .jpeg({ quality: 82, mozjpeg: true })
+          const tmpPath = fp + ".tmp.jpg";
+          // Use sequential: true and limit concurrency to save memory
+          await sharp(fp, { sequentialRead: true, limitInputPixels: 100000000 })
+            .resize(1200, null, { withoutEnlargement: true, fit: "inside" })
+            .jpeg({ quality: 80, mozjpeg: true })
             .toFile(tmpPath);
           const newStat = fs.statSync(tmpPath);
           fs.unlinkSync(fp);
           fs.renameSync(tmpPath, fp);
           console.log(`  Compressed: ${file} ${(stat.size/1024).toFixed(0)}KB → ${(newStat.size/1024).toFixed(0)}KB`);
           compressed++;
+          // Force garbage collection between files
+          if (global.gc) global.gc();
         } catch (e) {
-          // If compression fails for a file, skip it
           console.warn(`  Skipped ${file}: ${e.message}`);
-          const tmpPath = fp + ".tmp";
-          if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+          try { fs.unlinkSync(fp + ".tmp.jpg"); } catch(_){}
         }
       }
     }
