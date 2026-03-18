@@ -18,6 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { networkInterfaces } = require("os");
+const sharp = require("sharp");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -61,6 +62,39 @@ const existingSettings = loadSettings();
 console.log(`  Loaded ${existingPieces.length} pieces from database.`);
 console.log(`  Splash video: ${existingSettings.splashVideo ? "YES" : "not set"}`);
 
+// ═══════════════════ STARTUP: Compress oversized images ═══════════════════
+(async () => {
+  try {
+    const files = fs.readdirSync(UPLOADS_DIR);
+    let compressed = 0;
+    for (const file of files) {
+      const fp = path.join(UPLOADS_DIR, file);
+      const stat = fs.statSync(fp);
+      if (stat.size > 500 * 1024) { // Over 500KB — needs compression
+        try {
+          const tmpPath = fp + ".tmp";
+          await sharp(fp)
+            .resize(1200, null, { withoutEnlargement: true })
+            .jpeg({ quality: 82, mozjpeg: true })
+            .toFile(tmpPath);
+          const newStat = fs.statSync(tmpPath);
+          fs.unlinkSync(fp);
+          fs.renameSync(tmpPath, fp);
+          console.log(`  Compressed: ${file} ${(stat.size/1024).toFixed(0)}KB → ${(newStat.size/1024).toFixed(0)}KB`);
+          compressed++;
+        } catch (e) {
+          // If compression fails for a file, skip it
+          console.warn(`  Skipped ${file}: ${e.message}`);
+          const tmpPath = fp + ".tmp";
+          if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+        }
+      }
+    }
+    if (compressed > 0) console.log(`  Optimized ${compressed} existing images.`);
+    else console.log(`  All images already optimized.`);
+  } catch (e) { console.warn("Image migration skipped:", e.message); }
+})();
+
 // MIME types
 const MIME = {
   ".html":"text/html", ".css":"text/css", ".js":"application/javascript",
@@ -103,21 +137,26 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── API: POST /api/upload (upload image as base64 JSON) ──
+  // ── API: POST /api/upload (upload image as base64 JSON — compressed with sharp) ──
   if (pathname === "/api/upload" && req.method === "POST") {
     const chunks = [];
     req.on("data", chunk => chunks.push(chunk));
-    req.on("end", () => {
+    req.on("end", async () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf-8");
         const data = JSON.parse(raw);
         const match = data.image.match(/^data:image\/(\w+);base64,(.+)$/);
         if (!match) { res.writeHead(400); res.end('{"error":"Invalid image"}'); return; }
-        const ext = match[1] === "jpeg" ? "jpg" : match[1];
         const buf = Buffer.from(match[2], "base64");
-        const filename = Date.now().toString(36) + "_" + crypto.randomBytes(4).toString("hex") + "." + ext;
+        const filename = Date.now().toString(36) + "_" + crypto.randomBytes(4).toString("hex") + ".jpg";
         const filepath = path.join(UPLOADS_DIR, filename);
-        fs.writeFileSync(filepath, buf);
+        // Resize to max 1200px wide, convert to JPEG quality 82
+        await sharp(buf)
+          .resize(1200, null, { withoutEnlargement: true })
+          .jpeg({ quality: 82, mozjpeg: true })
+          .toFile(filepath);
+        const stat = fs.statSync(filepath);
+        console.log(`  Image compressed: ${(buf.length/1024).toFixed(0)}KB → ${(stat.size/1024).toFixed(0)}KB`);
         const imageUrl = "/data/uploads/" + filename;
         res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
         res.end(JSON.stringify({ url: imageUrl }));
@@ -281,9 +320,16 @@ const server = http.createServer((req, res) => {
       else { res.writeHead(500); res.end("Server Error"); }
       return;
     }
+    // Smart caching: uploaded images get long cache (immutable filenames), assets get 1 day, API/HTML get no-cache
+    let cacheControl = "no-cache";
+    if (filePath.startsWith(UPLOADS_DIR) || filePath.startsWith(MEDIA_DIR)) {
+      cacheControl = "public, max-age=31536000, immutable"; // 1 year — filenames are unique
+    } else if (ext === ".css" || ext === ".js" || ext === ".ttf" || ext === ".otf" || ext === ".woff" || ext === ".woff2" || ext === ".png" || ext === ".jpg" || ext === ".webp") {
+      cacheControl = "public, max-age=86400"; // 1 day for static assets
+    }
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": "no-cache",
+      "Cache-Control": cacheControl,
       "Access-Control-Allow-Origin": "*",
     });
     res.end(fileData);

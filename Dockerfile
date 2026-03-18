@@ -2,8 +2,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy application files
+# Install dependencies (sharp needs these on Alpine)
 COPY package.json ./
+RUN npm install --omit=dev
+
+# Copy application files
 COPY server.js ./
 COPY index.html ./
 COPY css/ ./css/
