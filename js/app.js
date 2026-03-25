@@ -373,11 +373,14 @@ function PiecesTab({ pieces, save }) {
               editId===piece.id ?
                 h("div", { style:{ display:"flex", flexDirection:"column", gap:"8px" }},
                   h("input", { value:piece.name, onChange:e=>updateName(piece.id, e.target.value),
-                    onBlur:()=>setEditId(null), onKeyDown:e=>{ if(e.key==="Enter") setEditId(null); },
+                    onKeyDown:e=>{ if(e.key==="Enter") setEditId(null); },
                     autoFocus:true, style:{ background:"rgba(250,248,245,0.05)", border:"1px solid rgba(250,248,245,0.12)", borderRadius:"3px", padding:"8px 10px", color:"#faf8f5", fontSize:"14px", fontFamily:"'BlackMango', serif" }}),
-                  h("select", { value:piece.category, onChange:e=>updateCategory(piece.id, e.target.value),
-                    style:{ background:"rgba(250,248,245,0.05)", border:"1px solid rgba(250,248,245,0.12)", borderRadius:"3px", padding:"6px 8px", color:"rgba(250,248,245,0.6)", fontSize:"11px", fontFamily:"'Outfit', sans-serif" }},
-                    CATEGORIES.map(c => h("option", { key:c, value:c, style:{ background:"#1a1a1a" }}, c)))
+                  h("div", { style: { display: "flex", gap: "8px" } },
+                    h("select", { value:piece.category, onChange:e=>updateCategory(piece.id, e.target.value),
+                      style:{ flex:1, background:"rgba(250,248,245,0.05)", border:"1px solid rgba(250,248,245,0.12)", borderRadius:"3px", padding:"6px 8px", color:"rgba(250,248,245,0.6)", fontSize:"11px", fontFamily:"'Outfit', sans-serif" }},
+                      CATEGORIES.map(c => h("option", { key:c, value:c, style:{ background:"#1a1a1a" }}, c))),
+                    h("button", { onClick: ()=>setEditId(null), style:{ background:"linear-gradient(135deg, "+ACCENT+", #d4af37)", border:"none", borderRadius:"3px", padding:"0 12px", color:"#0a0a0a", fontSize:"10px", fontWeight:"bold", cursor:"pointer", fontFamily:"'Outfit', sans-serif" } }, "DONE")
+                  )
                 ) :
                 h("div", { onClick:()=>setEditId(piece.id), style:{ cursor:"pointer" }},
                   h("div", { style:{ fontSize:"15px", fontFamily:"'BlackMango', serif", fontWeight:500, color:"#faf8f5", marginBottom:"4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}, piece.name),
@@ -460,7 +463,7 @@ function AdminPanel({ pieces, save, settings, onSettingsChange }) {
     color: active ? ACCENT : "rgba(250,248,245,0.35)", fontFamily:"'Outfit', sans-serif", transition:"all 0.3s ease"
   });
 
-  return h("div", { style:{ height:"100vh", overflowY:"auto", background:"#0a0a0a", fontFamily:"'Outfit', sans-serif", color:"#faf8f5" }},
+  return h("div", { style:{ minHeight:"100vh", background:"#0a0a0a", fontFamily:"'Outfit', sans-serif", color:"#faf8f5" }},
     // Header
     h("div", { style:{ padding:"24px 20px 0", background:"rgba(10,10,10,0.95)", position:"sticky", top:0, zIndex:50, backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }},
       h("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px" }},
