@@ -4,3 +4,5 @@ data/
 .git/
 *.log
 *.md
+assets/uploads/
+assets/splash-video.mp4
