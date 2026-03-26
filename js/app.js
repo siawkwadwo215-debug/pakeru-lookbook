@@ -463,7 +463,7 @@ function AdminPanel({ pieces, save, settings, onSettingsChange }) {
     color: active ? ACCENT : "rgba(250,248,245,0.35)", fontFamily:"'Outfit', sans-serif", transition:"all 0.3s ease"
   });
 
-  return h("div", { style:{ minHeight:"100vh", background:"#0a0a0a", fontFamily:"'Outfit', sans-serif", color:"#faf8f5" }},
+  return h("div", { style:{ height:"100vh", overflowY:"scroll", overflowX:"hidden", background:"#0a0a0a", fontFamily:"'Outfit', sans-serif", color:"#faf8f5" }},
     // Header
     h("div", { style:{ padding:"24px 20px 0", background:"rgba(10,10,10,0.95)", position:"sticky", top:0, zIndex:50, backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }},
       h("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px" }},
